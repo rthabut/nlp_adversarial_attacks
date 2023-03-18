@@ -15,20 +15,12 @@ from scipy.special import rel_entr
 from scipy.stats import wasserstein_distance
 from sklearn.covariance import OAS, LedoitWolf, MinCovDet
 from sklearn.decomposition import KernelPCA
-from sklearn.metrics import (
-    auc,
-    average_precision_score,
-    confusion_matrix,
-    precision_recall_curve,
-    roc_auc_score,
-    roc_curve,
-)
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.metrics import (auc, average_precision_score, confusion_matrix,
+                             precision_recall_curve, roc_auc_score, roc_curve)
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from textattack import Attack
-from textattack.constraints.pre_transformation import (
-    RepeatModification,
-    StopwordModification,
-)
+from textattack.constraints.pre_transformation import (RepeatModification,
+                                                       StopwordModification)
 from textattack.datasets import HuggingFaceDataset
 from textattack.goal_functions import UntargetedClassification
 from textattack.models.wrappers import HuggingFaceModelWrapper
@@ -119,8 +111,8 @@ def get_mahalanobis_score(
     num_samples=100,
     preprocess=True,
     reduce_dim=True,
-    kernel = 'rbf',
-    batch_size = 5000
+    kernel="rbf",
+    batch_size=5000,
 ):
     copy_test, copy_train = (
         last_layer_test.clone().cpu().detach(),
@@ -131,13 +123,13 @@ def get_mahalanobis_score(
         scaler = StandardScaler()
         copy_test = scaler.fit_transform(copy_test)
         copy_train = scaler.transform(copy_train)
-    
+
     if reduce_dim:
-        copy_test = KPCA(copy_test , kernel = kernel , batch_size = batch_size)
-        copy_train = KPCA(copy_train , kernel = kernel , batch_size = batch_size)
-#        PCA = KernelPCA(n_components=100, gamma = 1/100, kernel=kernel, random_state=c.rd_state)
-#        copy_test = PCA.fit_transform(copy_test)
-#        copy_train = PCA.transform(copy_train)
+        copy_test = KPCA(copy_test, kernel=kernel, batch_size=batch_size)
+        copy_train = KPCA(copy_train, kernel=kernel, batch_size=batch_size)
+    #        PCA = KernelPCA(n_components=100, gamma = 1/100, kernel=kernel, random_state=c.rd_state)
+    #        copy_test = PCA.fit_transform(copy_test)
+    #        copy_train = PCA.transform(copy_train)
 
     train_sets_idx = get_shuffle_idx(len(copy_train), num_samples=num_samples)
     Distance = []
@@ -155,31 +147,38 @@ def get_mahalanobis_score(
     Confidence = Score.max(0)[0]
     return torch.tensor(Confidence)
 
-def KPCA(X,batch_size=5000,kernel='rbf'):
-    PCA = KernelPCA(n_components=100, gamma = 1/100, kernel=kernel, random_state=c.rd_state)
+
+def KPCA(X, batch_size=5000, kernel="rbf"):
+    PCA = KernelPCA(
+        n_components=100, gamma=1 / 100, kernel=kernel, random_state=c.rd_state
+    )
     batch_idx = 0
-    num_batches = len(X)//batch_size
-    reduced_X = np.zeros((len(X),100))
+    num_batches = len(X) // batch_size
+    reduced_X = np.zeros((len(X), 100))
     for batch_idx in tqdm(range(num_batches)):
         if batch_idx == 0:
             reduced_X[:batch_size] = PCA.fit_transform(X[:batch_size])
         else:
-            reduced_X[batch_size*batch_idx:batch_size*(batch_idx+1)]= PCA.transform(X[batch_size*batch_idx:batch_size*(batch_idx+1)])
-    if num_batches > 1 :
+            reduced_X[
+                batch_size * batch_idx : batch_size * (batch_idx + 1)
+            ] = PCA.transform(X[batch_size * batch_idx : batch_size * (batch_idx + 1)])
+    if num_batches > 1:
         reduced_X[-batch_size:] = PCA.transform(X[-batch_size:])
     else:
         reduced_X = PCA.fit_transform(X)
     return reduced_X
 
-def get_euclidian_score(last_layer,last_layer_train,preprocess=True):
+
+def get_euclidian_score(last_layer, last_layer_train, preprocess=True):
     center = last_layer_train.mean(0)
     if preprocess:
         scaler = MinMaxScaler()
         last_layer_train = scaler.fit_transform(last_layer_train)
         last_layer = scaler.transform(last_layer)
-    X = (last_layer-last_layer_train.mean(0))
-    Distance = np.sqrt(np.diag(X@X.T))
+    X = last_layer - last_layer_train.mean(0)
+    Distance = np.sqrt(np.diag(X @ X.T))
     return -Distance
+
 
 def set_threshold(score, labels, fpr_threshold=0.1, show_results=True):
     fpr, tpr, thresholds = roc_curve(labels, score.detach().numpy())

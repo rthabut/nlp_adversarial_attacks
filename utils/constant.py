@@ -1,3 +1,5 @@
-from sklearn.covariance import LedoitWolf, OAS, MinCovDet
+from sklearn.covariance import OAS, LedoitWolf, MinCovDet
 
 estimators_dict = {"LW": LedoitWolf, "OAS": OAS, "MCD": MinCovDet}
+
+rd_state = 42
